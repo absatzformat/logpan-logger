@@ -22,7 +22,7 @@ class Logger extends AbstractLogger
 		LogLevel::DEBUG
 	];
 
-	public function __construct(string $url, int $channelId, )
+	public function __construct(string $url, int $channelId)
 	{
 	}
 
@@ -42,8 +42,6 @@ class Logger extends AbstractLogger
 			'tag' => (string)$level,
 			'message' => $message
 		];
-
-
 	}
 
 	protected function interpolateMessage(string $message, array $context): string
