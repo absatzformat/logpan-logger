@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace LogPan\Logger;
 
+use DateTime;
+use DateTimeZone;
 use Psr\Log\AbstractLogger;
 use Psr\Log\InvalidArgumentException;
 use Psr\Log\LogLevel;
@@ -27,7 +29,7 @@ class Logger extends AbstractLogger
 	/** @var array<int, string> */
 	protected $logs = [];
 
-	/** @var null|resource */
+	/** @var resource */
 	protected $socket;
 
 	/** @var string */
@@ -44,6 +46,9 @@ class Logger extends AbstractLogger
 
 	/** @var resource */
 	protected $stream;
+
+	/** @var int */
+	protected $streamSize = 0;
 
 	/** @var string */
 	protected $target;
@@ -68,14 +73,14 @@ class Logger extends AbstractLogger
 		$this->token = $token;
 
 		$this->stream = fopen('php://temp', 'r+');
+		$this->socket = $this->createSocket('tcp://' . $this->host . ':' . $this->port, $this->secure);
 	}
 
 	public function __destruct()
 	{
-		if ($this->socket !== null) {
-			fclose($this->socket);
-		}
+		$this->sendLogs();
 
+		fclose($this->socket);
 		fclose($this->stream);
 	}
 
@@ -89,19 +94,20 @@ class Logger extends AbstractLogger
 		// 	throw new InvalidArgumentException('Message must be a string or stringable object');
 		// }
 
-		if ($this->socket === null) {
-
-			$this->socket = $this->createSocket('tcp://' . $this->host . ':' . $this->port, $this->secure);
-
-			$headers = $this->getRequestHeaders();
-			$this->fwrite($this->socket, $headers);
-		}
-
 		$message = $this->interpolateMessage($message, $context);
-		$message .= "\r\n";
 
-		// fwrite($this->stream, $message);
-		$this->fwrite($this->socket, $message);
+		$log = [
+			'level' => (string)$level,
+			'message' => $message,
+			'datetime' => (new DateTime('now', new DateTimeZone('UTC')))->format('c')
+		];
+
+		$data = json_encode($log, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+		$data .= "\r\n";
+
+		if (false !== $written = fwrite($this->stream, $data)) {
+			$this->streamSize += $written;
+		}
 	}
 
 	protected function interpolateMessage(string $message, array $context): string
@@ -119,22 +125,17 @@ class Logger extends AbstractLogger
 		return strtr($message, $replace);
 	}
 
-	public function sendLogs(): void
+	protected function sendLogs(): void
 	{
-		if ($this->socket === null) {
+		$headers = $this->getRequestHeaders();
 
-			$this->socket = $this->createSocket('tcp://' . $this->host . ':' . $this->port, $this->secure);
-
-			$headers = $this->getRequestHeaders();
-			$this->fwrite($this->socket, $headers);
-		}
+		$this->fwrite($this->socket, $headers);
 
 		rewind($this->stream);
 
 		while (!feof($this->stream)) {
 
 			$bytes = fread($this->stream, 1024);
-
 			$this->fwrite($this->socket, $bytes);
 		}
 	}
@@ -146,6 +147,7 @@ class Logger extends AbstractLogger
 		$headers .= "User-Agent: {$this->userAgent}\r\n";
 		$headers .= "Authorization: Bearer {$this->token}\r\n";
 		$headers .= "Content-Type: text/plain\r\n";
+		$headers .= "Content-Length: {$this->streamSize}\r\n";
 		$headers .= "Connection: close\r\n";
 
 		$headers .= "\r\n";
@@ -161,7 +163,7 @@ class Logger extends AbstractLogger
 		$errNo = null;
 		$errMsg = null;
 
-		$socket = @stream_socket_client($address, $errNo, $errMsg, 10, STREAM_CLIENT_CONNECT | STREAM_CLIENT_ASYNC_CONNECT);
+		$socket = @stream_socket_client($address, $errNo, $errMsg, 3, STREAM_CLIENT_CONNECT | STREAM_CLIENT_ASYNC_CONNECT);
 
 		if ($socket === false) {
 			throw new RuntimeException($errMsg, $errNo);

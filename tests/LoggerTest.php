@@ -9,9 +9,9 @@ final class LoggerTest extends TestCase
 {
 	public function testSendLogs(): void
 	{
-		$logger = new Logger('localhost:8080', 2, '1234', '/', false);
-		$logger->alert('Line1');
+		$logger = new Logger('localhost:8080', 3, '1234', '/channel', false);
+		$logger->alert('Line5');
 		sleep(1);
-		$logger->alert('Line2');
+		$logger->debug('Line6');
 	}
 }
