@@ -10,6 +10,12 @@ use Psr\Log\AbstractLogger;
 use Psr\Log\InvalidArgumentException;
 use Psr\Log\LogLevel;
 
+use function in_array;
+use function is_scalar;
+use function is_object;
+use function method_exists;
+use function strtr;
+
 class Logger extends AbstractLogger
 {
 	/** @var string[] */
@@ -79,7 +85,7 @@ class Logger extends AbstractLogger
 	 */
 	public static function getLevels(): array
 	{
-		return array_values(self::$logLevels);
+		return self::$logLevels;
 	}
 
 	public function getTimezone(): DateTimeZone

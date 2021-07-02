@@ -4,6 +4,29 @@ declare(strict_types=1);
 
 namespace LogPan\Logger;
 
+use function parse_url;
+use function rtrim;
+use function fopen;
+use function is_resource;
+use function fclose;
+use function fwrite;
+use function json_encode;
+use function rewind;
+use function feof;
+use function fread;
+use function fgets;
+use function strlen;
+use function stream_select;
+use function stream_socket_client;
+use function stream_socket_enable_crypto;
+
+use const JSON_UNESCAPED_UNICODE;
+use const JSON_UNESCAPED_SLASHES;
+use const JSON_THROW_ON_ERROR;
+use const STREAM_CLIENT_CONNECT;
+use const STREAM_CLIENT_ASYNC_CONNECT;
+use const STREAM_CRYPTO_METHOD_ANY_CLIENT;
+
 final class SocketHandler implements HandlerInterface
 {
 	/** @var resource */
