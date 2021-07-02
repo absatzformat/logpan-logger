@@ -60,19 +60,18 @@ final class SocketHandler implements HandlerInterface
 		string $address,
 		int $channel,
 		string $token,
-		string $path = '/channel',
-		bool $secure = true
+		string $path = '/channel'
 	) {
 		$url = parse_url($address);
 
 		$this->host = $url['host'] ?? '';
-		$this->port = $url['port'] ?? (isset($url['scheme']) && $url['scheme'] === 'https' ? 443 : 80);
-		$this->secure = $secure;
+		$this->secure = isset($url['scheme']) && $url['scheme'] === 'https';
+		$this->port = $url['port'] ?? ($this->secure ? 443 : 80);
 
 		$this->target = rtrim($path, '/') . '/' . $channel;
 		$this->token = $token;
 
-		$this->stream = fopen('php://temp', 'r+');
+		$this->stream = @fopen('php://temp', 'r+');
 		$this->streamSize = 0;
 		$this->socket = $this->createSocket('tcp://' . $this->host . ':' . $this->port);
 	}
@@ -97,12 +96,14 @@ final class SocketHandler implements HandlerInterface
 		$data = json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 		$data .= "\r\n";
 
-		if (false !== $written = fwrite($this->stream, $data)) {
+		$written = @fwrite($this->stream, $data);
+
+		if ($written !== false) {
 			$this->streamSize += $written;
 		}
 	}
 
-	public function sendLogs(): void
+	protected function sendLogs(): void
 	{
 		if ($this->streamSize === 0) {
 			return;
@@ -124,12 +125,9 @@ final class SocketHandler implements HandlerInterface
 		while (!@feof($this->stream)) {
 
 			$bytes = @fread($this->stream, 4096);
+
 			$this->fwrite($this->socket, $bytes);
 		}
-
-		@fgets($this->socket);
-
-		// TODO: check server response
 	}
 
 	protected function getRequestHeaders(): string

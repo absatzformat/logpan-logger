@@ -12,7 +12,7 @@ final class LoggerTest extends TestCase
 	{
 		$this->expectNotToPerformAssertions();
 
-		$handler = new SocketHandler('https://logpan.absatzprojekt.de', 1, '1234', '/channel', true);
+		$handler = new SocketHandler('http://localhost:8080', 1, '1234');
 		$logger = new Logger($handler);
 		$logger->alert('Line5');
 		// sleep(1);
