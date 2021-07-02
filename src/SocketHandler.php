@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace LogPan\Logger;
 
-use RuntimeException;
-use Throwable;
-
 final class SocketHandler implements HandlerInterface
 {
 	/** @var resource */
@@ -28,7 +25,7 @@ final class SocketHandler implements HandlerInterface
 	protected $stream;
 
 	/** @var int */
-	protected $streamSize = 0;
+	protected $streamSize;
 
 	/** @var string */
 	protected $target;
@@ -53,20 +50,20 @@ final class SocketHandler implements HandlerInterface
 		$this->token = $token;
 
 		$this->stream = fopen('php://temp', 'r+');
+		$this->streamSize = 0;
 		$this->socket = $this->createSocket('tcp://' . $this->host . ':' . $this->port);
 	}
 
 	public function __destruct()
 	{
-		try {
-			$this->sendLogs();
-		} catch (Throwable $e) {
-		}
+		$this->sendLogs();
 
+		/** @var false|resource $this->socket */
 		if (is_resource($this->socket)) {
 			fclose($this->socket);
 		}
 
+		/** @var false|resource $this->stream */
 		if (is_resource($this->stream)) {
 			fclose($this->stream);
 		}
@@ -89,22 +86,27 @@ final class SocketHandler implements HandlerInterface
 		}
 
 		if ($this->secure) {
-			$this->enableCrypto($this->socket);
+
+			do {
+				$enabled = $this->enableCrypto($this->socket);
+			} while ($enabled === 0);
 		}
 
 		$headers = $this->getRequestHeaders();
 
 		$this->fwrite($this->socket, $headers);
 
-		rewind($this->stream);
+		@rewind($this->stream);
 
-		while (!feof($this->stream)) {
+		while (!@feof($this->stream)) {
 
-			$bytes = fread($this->stream, 4096);
+			$bytes = @fread($this->stream, 4096);
 			$this->fwrite($this->socket, $bytes);
 		}
 
-		fgets($this->socket);
+		@fgets($this->socket);
+
+		// TODO: check server response
 	}
 
 	protected function getRequestHeaders(): string
@@ -132,24 +134,16 @@ final class SocketHandler implements HandlerInterface
 
 		$socket = @stream_socket_client($remote, $errNo, $errMsg, 1, STREAM_CLIENT_CONNECT | STREAM_CLIENT_ASYNC_CONNECT);
 
-		if ($socket === false) {
-			throw new RuntimeException($errMsg, $errNo);
-		}
-
 		return $socket;
 	}
 
 	/**
 	 * @param resource $socket
+	 * @return bool|int
 	 */
-	protected function enableCrypto($socket): void
+	protected function enableCrypto($socket)
 	{
-		$result = @stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_ANY_CLIENT);
-
-		if ($result === false) {
-			$error = error_get_last();
-			throw new RuntimeException('Cannot enable tls: ' . (isset($error) ? $error['message'] : ''));
-		}
+		return @stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_ANY_CLIENT);
 	}
 
 	/**
