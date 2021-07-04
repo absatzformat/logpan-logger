@@ -1,6 +1,6 @@
 {
-    "name": "absatzformat/logpan-logger",
-    "description": "PSR-3 logger for LogPan.",
+    "name": "logjar/logger",
+    "description": "PSR-3 logger for Logjar.",
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -11,7 +11,7 @@
     ],
     "autoload": {
         "psr-4": {
-            "LogPan\\Logger\\": "src/"
+            "Logjar\\Logger\\": "src/"
         }
     },
     "scripts": {

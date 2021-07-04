@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use LogPan\Logger\Logger;
-use LogPan\Logger\SocketHandler;
+use Logjar\Logger\Logger;
+use Logjar\Logger\SocketHandler;
 use PHPUnit\Framework\TestCase;
 
 final class LoggerTest extends TestCase

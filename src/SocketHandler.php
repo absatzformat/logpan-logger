@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LogPan\Logger;
+namespace Logjar\Logger;
 
 use function parse_url;
 use function rtrim;
@@ -14,7 +14,6 @@ use function json_encode;
 use function rewind;
 use function feof;
 use function fread;
-use function fgets;
 use function strlen;
 use function stream_select;
 use function stream_socket_client;
@@ -54,7 +53,7 @@ final class SocketHandler implements HandlerInterface
 	protected $target;
 
 	/** @var string */
-	protected $userAgent = 'LogPanLogger/1.0 (https://github.com/absatzformat/logpan-logger)';
+	protected $userAgent = 'LogjarLogger/1.0 (https://github.com/logjar/logger)';
 
 	public function __construct(
 		string $address,

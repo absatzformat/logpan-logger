@@ -1,2 +1,2 @@
-# logpan-logger
-PSR-3 logger for LogPan
+# Logger
+PSR-3 logger for Logjar

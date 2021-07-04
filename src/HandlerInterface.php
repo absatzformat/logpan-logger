@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace LogPan\Logger;
+namespace Logjar\Logger;
 
 interface HandlerInterface
 {
