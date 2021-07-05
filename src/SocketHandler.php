@@ -25,10 +25,11 @@ use const JSON_THROW_ON_ERROR;
 use const STREAM_CLIENT_CONNECT;
 use const STREAM_CLIENT_ASYNC_CONNECT;
 use const STREAM_CRYPTO_METHOD_ANY_CLIENT;
+use const STREAM_CLIENT_PERSISTENT;
 
 final class SocketHandler implements HandlerInterface
 {
-	/** @var resource */
+	/** @var false|resource */
 	protected $socket;
 
 	/** @var string */
@@ -43,7 +44,7 @@ final class SocketHandler implements HandlerInterface
 	/** @var string */
 	protected $token;
 
-	/** @var resource */
+	/** @var false|resource */
 	protected $stream;
 
 	/** @var int */
@@ -79,12 +80,10 @@ final class SocketHandler implements HandlerInterface
 	{
 		$this->sendLogs();
 
-		/** @var false|resource $this->socket */
 		if (is_resource($this->socket)) {
 			fclose($this->socket);
 		}
 
-		/** @var false|resource $this->stream */
 		if (is_resource($this->stream)) {
 			fclose($this->stream);
 		}
@@ -92,7 +91,12 @@ final class SocketHandler implements HandlerInterface
 
 	public function handle(array $record): void
 	{
-		$data = json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+		if (!$this->stream) {
+			return;
+		}
+
+		$flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR;
+		$data = json_encode($record, $flags);
 		$data .= "\r\n";
 
 		$written = @fwrite($this->stream, $data);
@@ -104,16 +108,13 @@ final class SocketHandler implements HandlerInterface
 
 	protected function sendLogs(): void
 	{
-		if ($this->streamSize === 0) {
+		if (!$this->stream || !$this->socket || $this->streamSize === 0) {
 			return;
 		}
 
-		if ($this->secure) {
-
-			do {
-				$enabled = $this->enableCrypto($this->socket);
-			} while ($enabled === 0);
-		}
+		do {
+			$enabled = $this->enableCrypto($this->socket, $this->secure);
+		} while ($enabled === 0);
 
 		$headers = $this->getRequestHeaders();
 
@@ -137,7 +138,7 @@ final class SocketHandler implements HandlerInterface
 		$headers .= "Authorization: Bearer {$this->token}\r\n";
 		$headers .= "Content-Type: text/plain\r\n";
 		$headers .= "Content-Length: {$this->streamSize}\r\n";
-		$headers .= "Connection: close\r\n";
+		$headers .= "Connection: keep-alive\r\n";
 
 		$headers .= "\r\n";
 
@@ -145,14 +146,15 @@ final class SocketHandler implements HandlerInterface
 	}
 
 	/**
-	 * @return resource
+	 * @return false|resource
 	 */
-	protected function createSocket(string $remote)
+	protected function createSocket(string $remote, int $timeout = 1)
 	{
 		$errNo = null;
 		$errMsg = null;
 
-		$socket = @stream_socket_client($remote, $errNo, $errMsg, 1, STREAM_CLIENT_CONNECT | STREAM_CLIENT_ASYNC_CONNECT);
+		$flags = STREAM_CLIENT_CONNECT | STREAM_CLIENT_ASYNC_CONNECT | STREAM_CLIENT_PERSISTENT;
+		$socket = @stream_socket_client($remote, $errNo, $errMsg, $timeout, $flags);
 
 		return $socket;
 	}
@@ -161,15 +163,15 @@ final class SocketHandler implements HandlerInterface
 	 * @param resource $socket
 	 * @return bool|int
 	 */
-	protected function enableCrypto($socket)
+	protected function enableCrypto($socket, bool $switch = true)
 	{
-		return @stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_ANY_CLIENT);
+		return @stream_socket_enable_crypto($socket, $switch, STREAM_CRYPTO_METHOD_ANY_CLIENT);
 	}
 
 	/**
 	 * @see https://secure.phabricator.com/rPHU69490c53c9c2ef2002bc2dd4cecfe9a4b080b497
 	 * @param resource $stream
-	 * @return bool|int
+	 * @return false|int
 	 */
 	protected function fwrite($stream, string $bytes)
 	{
