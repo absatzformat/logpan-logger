@@ -90,24 +90,32 @@ final class SocketHandler implements HandlerInterface
 
 	public function handle(array $record): void
 	{
-		if (!$this->stream) {
+		if ($this->stream === false) {
 			return;
 		}
 
-		$flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR;
-		$data = json_encode($record, $flags);
-		$data .= "\r\n";
+		$flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
+		$data = @json_encode($record, $flags);
 
-		$written = @fwrite($this->stream, $data);
+		if ($data !== false) {
 
-		if ($written !== false) {
-			$this->streamSize += $written;
+			$data .= "\r\n";
+
+			$written = @fwrite($this->stream, $data);
+
+			if ($written !== false) {
+				$this->streamSize += $written;
+			}
 		}
 	}
 
 	protected function sendLogs(): void
 	{
-		if (!$this->stream || !$this->socket || $this->streamSize === 0) {
+		if (
+			$this->stream === false ||
+			$this->socket === false ||
+			$this->streamSize === 0
+		) {
 			return;
 		}
 
@@ -147,13 +155,14 @@ final class SocketHandler implements HandlerInterface
 	/**
 	 * @return false|resource
 	 */
-	protected function createSocket(string $remote, int $timeout = 1)
+	protected function createSocket(string $remote)
 	{
-		$errNo = null;
-		$errMsg = null;
-
 		$flags = STREAM_CLIENT_CONNECT | STREAM_CLIENT_ASYNC_CONNECT | STREAM_CLIENT_PERSISTENT;
-		$socket = @stream_socket_client($remote, $errNo, $errMsg, $timeout, $flags);
+		$socket = @stream_socket_client($remote, $errNo, $errMsg, 0, $flags);
+
+		if ($socket !== false) {
+			stream_set_blocking($socket, false);
+		}
 
 		return $socket;
 	}
