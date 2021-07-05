@@ -19,6 +19,14 @@ final class LoggerTest extends TestCase
 		$logger->debug('Line6');
 	}
 
+	public function testInvalidHost(): void
+	{
+		$this->expectNotToPerformAssertions();
+		
+		$handler = new SocketHandler('http://abc.def:80', 1, '1234');
+		$handler->handle(['test' => 'data']);
+	}
+
 	public function testTimezone(): void
 	{
 		$handler = new SocketHandler('', 1, '');

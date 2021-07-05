@@ -48,7 +48,7 @@ final class SocketHandler implements HandlerInterface
 	protected $stream;
 
 	/** @var int */
-	protected $streamSize;
+	protected $streamSize = 0;
 
 	/** @var string */
 	protected $target;
@@ -72,7 +72,6 @@ final class SocketHandler implements HandlerInterface
 		$this->token = $token;
 
 		$this->stream = @fopen('php://temp', 'r+');
-		$this->streamSize = 0;
 		$this->socket = $this->createSocket('tcp://' . $this->host . ':' . $this->port);
 	}
 
@@ -124,7 +123,7 @@ final class SocketHandler implements HandlerInterface
 
 		while (!@feof($this->stream)) {
 
-			$bytes = @fread($this->stream, 4096);
+			$bytes = @fread($this->stream, 1024);
 
 			$this->fwrite($this->socket, $bytes);
 		}
