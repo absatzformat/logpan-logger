@@ -119,9 +119,13 @@ final class SocketHandler implements HandlerInterface
 			return;
 		}
 
-		do {
-			$enabled = $this->enableCrypto($this->socket, $this->secure);
-		} while ($enabled === 0);
+		if (!$this->socketReady($this->socket, true, 500)) {
+			return;
+		}
+
+		if ($this->secure) {
+			$this->enableCrypto($this->socket);
+		}
 
 		$headers = $this->getRequestHeaders();
 
@@ -135,13 +139,18 @@ final class SocketHandler implements HandlerInterface
 
 			$this->fwrite($this->socket, $bytes);
 		}
+
+		$this->socketReady($this->socket, false, 500);
+
+		@fread($this->socket, 1);
 	}
+
+
 
 	protected function getRequestHeaders(): string
 	{
 		$headers = "POST {$this->target} HTTP/1.1\r\n";
 		$headers .= "Host: {$this->host}\r\n";
-		$headers .= "User-Agent: {$this->userAgent}\r\n";
 		$headers .= "Authorization: Bearer {$this->token}\r\n";
 		$headers .= "Content-Type: text/plain\r\n";
 		$headers .= "Content-Length: {$this->streamSize}\r\n";
@@ -150,6 +159,27 @@ final class SocketHandler implements HandlerInterface
 		$headers .= "\r\n";
 
 		return $headers;
+	}
+
+	/**
+	 * @param resource $socket
+	 */
+	protected function socketReady($socket, bool $writing, int $timeout = 0): bool
+	{
+		$read = [];
+		$write = [];
+		$except = null;
+
+		$check = &$read;
+		if ($writing) {
+			$check = &$write;
+		}
+
+		$check[] = $socket;
+
+		@stream_select($read, $write, $except, 0, $timeout * 1000);
+
+		return !!$check;
 	}
 
 	/**
@@ -169,11 +199,15 @@ final class SocketHandler implements HandlerInterface
 
 	/**
 	 * @param resource $socket
-	 * @return bool|int
+	 * @return bool
 	 */
-	protected function enableCrypto($socket, bool $switch = true)
+	protected function enableCrypto($socket)
 	{
-		return @stream_socket_enable_crypto($socket, $switch, STREAM_CRYPTO_METHOD_ANY_CLIENT);
+		do {
+			$enabled = @stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_ANY_CLIENT);
+		} while ($enabled === 0);
+
+		return (bool)$enabled;
 	}
 
 	/**
