@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
+use Logjar\Logger\Handler\SocketHandler;
 use Logjar\Logger\Logger;
-use Logjar\Logger\SocketHandler;
+use Logjar\Logger\Record;
 use PHPUnit\Framework\TestCase;
 
 final class LoggerTest extends TestCase
@@ -22,9 +23,9 @@ final class LoggerTest extends TestCase
 	public function testInvalidHost(): void
 	{
 		$this->expectNotToPerformAssertions();
-		
+
 		$handler = new SocketHandler('http://abc.def:80', 1, '1234');
-		$handler->handle(['test' => 'data']);
+		$handler->handle(new Record('debug', 'test', time()));
 	}
 
 	public function testTimezone(): void

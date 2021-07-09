@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Logjar\Logger;
+namespace Logjar\Logger\Handler;
+
+use Logjar\Logger\HandlerInterface;
+use Logjar\Logger\Record;
 
 use function parse_url;
 use function rtrim;
@@ -88,7 +91,7 @@ final class SocketHandler implements HandlerInterface
 		}
 	}
 
-	public function handle(array $record): void
+	public function handle(Record $record): void
 	{
 		if ($this->stream === false) {
 			return;

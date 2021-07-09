@@ -6,8 +6,5 @@ namespace Logjar\Logger;
 
 interface HandlerInterface
 {
-	/**
-	 * @param array<string, mixed> $record
-	 */
-	public function handle(array $record): void;
+	public function handle(Record $record): void;
 }

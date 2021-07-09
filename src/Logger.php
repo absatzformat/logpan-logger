@@ -55,12 +55,9 @@ class Logger extends AbstractLogger
 
 		$message = $this->interpolateMessage($message, $context);
 		$datetime = new DateTimeImmutable('now', $this->timezone);
+		$timestamp = (int)$datetime->format('U');
 
-		$record = [
-			'level' => (string)$level,
-			'message' => $message,
-			'timestamp' => (int)$datetime->format('U')
-		];
+		$record = new Record((string)$level, $message, $timestamp);
 
 		$this->handler->handle($record);
 	}
