@@ -6,7 +6,7 @@
     "authors": [
         {
             "name": "Johannes Rabausch",
-            "email": "jrabausch@absatzformat.de"
+            "email": "mail@jrabausch.de"
         }
     ],
     "autoload": {
@@ -15,9 +15,11 @@
         }
     },
     "scripts": {
-        "test": "phpunit tests"
+        "test": "phpunit tests",
+        "check": "psalm"
     },
     "require": {
+        "php": ">= 7.4",
         "psr/log": "^1.1"
     },
     "require-dev": {
