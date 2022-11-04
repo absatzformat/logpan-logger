@@ -6,83 +6,72 @@ namespace Logjar\Logger;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use Generator;
 use Psr\Log\AbstractLogger;
 use Psr\Log\InvalidArgumentException;
 use Psr\Log\LogLevel;
 
-use function in_array;
-use function is_scalar;
-use function is_object;
-use function method_exists;
-use function strtr;
+use function is_string;
+use function array_shift;
+use function array_unshift;
 
 class Logger extends AbstractLogger
 {
-	/** @var string[] */
-	protected static $logLevels = [
+	/** @var array<string, int> */
+	protected static array $levels = [
 
-		LogLevel::EMERGENCY,
-		LogLevel::ALERT,
-		LogLevel::CRITICAL,
-		LogLevel::ERROR,
-		LogLevel::WARNING,
-		LogLevel::NOTICE,
-		LogLevel::INFO,
-		LogLevel::DEBUG
+		LogLevel::EMERGENCY => 0,
+		LogLevel::ALERT => 1,
+		LogLevel::CRITICAL => 2,
+		LogLevel::ERROR => 3,
+		LogLevel::WARNING => 4,
+		LogLevel::NOTICE => 5,
+		LogLevel::INFO => 6,
+		LogLevel::DEBUG => 7
 	];
 
-	/** @var DateTimeZone */
-	protected $timezone;
+	protected DateTimeZone $timezone;
 
-	/** @var HandlerInterface */
-	protected $handler;
+	/** @var array{0: string, 1: HandlerInterface}[] */
+	protected array $handler = [];
 
-	public function __construct(HandlerInterface $handler, ?DateTimeZone $timezone = null)
+	/**
+	 * @param iterable<mixed, HandlerInterface> $handler
+	 */
+	public function __construct(?DateTimeZone $timezone = null)
 	{
-		$this->handler = $handler;
 		$this->timezone = $timezone ?? new DateTimeZone('UTC');
 	}
 
 	public function log($level, $message, array $context = []): void
 	{
-		if (!in_array($level, self::$logLevels)) {
-			throw new InvalidArgumentException('Invalid log level supplied');
+		if (!is_string($level) || !isset(self::$levels[$level])) {
+			throw new InvalidArgumentException('Invalid log level < ' . (string)$level . ' > supplied');
 		}
 
-		// if (!is_string($message) && !(is_object($message) && method_exists($message, '__toString'))) {
-		// 	throw new InvalidArgumentException('Message must be a string or stringable object');
-		// }
-
-		$message = $this->interpolateMessage($message, $context);
 		$datetime = new DateTimeImmutable('now', $this->timezone);
-		$timestamp = (int)$datetime->format('U');
+		$record = new Record($level, $message, $context, $datetime);
 
-		$record = new Record((string)$level, $message, $timestamp);
+		foreach ($this->getHandler() as $handlerLevel => $handler) {
 
-		$this->handler->handle($record);
-	}
+			if (self::$levels[$handlerLevel] >= self::$levels[$level]) {
+				$handler->handle($record);
+			}
 
-	protected function interpolateMessage(string $message, array $context): string
-	{
-		$replace = [];
-
-		/** @var mixed */
-		foreach ($context as $key => $value) {
-
-			if (is_scalar($value) || (is_object($value) && method_exists($value, '__toString'))) {
-				$replace['{' . (string)$key . '}'] = (string)$value;
+			if ($record->isPropagationStopped()) {
+				break;
 			}
 		}
-
-		return strtr($message, $replace);
 	}
 
 	/**
-	 * @return string[]
+	 * @return Generator<string, HandlerInterface>
 	 */
-	public static function getLevels(): array
+	protected function getHandler(): Generator
 	{
-		return self::$logLevels;
+		foreach ($this->handler as $entry) {
+			yield $entry[0] => $entry[1];
+		}
 	}
 
 	public function getTimezone(): DateTimeZone
@@ -95,5 +84,21 @@ class Logger extends AbstractLogger
 		$this->timezone = $timezone;
 
 		return $this;
+	}
+
+	public function pushHandler(HandlerInterface $handler, string $level = LogLevel::DEBUG): self
+	{
+		if (!isset(self::$levels[$level])) {
+			throw new InvalidArgumentException('Invalid log level "' . $level . '" supplied');
+		}
+
+		array_unshift($this->handler, [$level, $handler]);
+
+		return $this;
+	}
+
+	public function popHandler(): ?array
+	{
+		return array_shift($this->handler);
 	}
 }

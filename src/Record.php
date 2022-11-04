@@ -4,24 +4,44 @@ declare(strict_types=1);
 
 namespace Logjar\Logger;
 
-use JsonSerializable;
+use DateTimeImmutable;
+use DateTimeInterface;
 
-final class Record implements JsonSerializable
+final class Record
 {
-	/** @var string */
-	protected $level;
+	public string $formatted;
 
-	/** @var string */
-	protected $message;
+	/** @var array<string, mixed> */
+	public array $misc = [];
 
-	/** @var int */
-	protected $timestamp;
+	protected string $level;
 
-	public function __construct(string $level, string $message, int $timestamp)
+	protected string $message;
+
+	protected array $context;
+
+	protected DateTimeImmutable $datetime;
+
+	protected bool $propagationStopped = false;
+
+	public function __construct(string $level, string $message, array $context, DateTimeImmutable $datetime)
 	{
 		$this->level = $level;
 		$this->message = $message;
-		$this->timestamp = $timestamp;
+		$this->context = $context;
+		$this->datetime = $datetime;
+
+		$this->formatted = $message;
+	}
+
+	public function stopPropagation(): void
+	{
+		$this->propagationStopped = true;
+	}
+
+	public function isPropagationStopped(): bool
+	{
+		return $this->propagationStopped;
 	}
 
 	public function getLevel(): string
@@ -34,17 +54,13 @@ final class Record implements JsonSerializable
 		return $this->message;
 	}
 
-	public function getTimestamp(): int
+	public function getContext(): array
 	{
-		return $this->timestamp;
+		return $this->context;
 	}
 
-	public function jsonSerialize()
+	public function getDateTime(): DateTimeInterface
 	{
-		return [
-			'level' => $this->level,
-			'message' => $this->message,
-			'timestamp' => $this->timestamp
-		];
+		return $this->datetime;
 	}
 }

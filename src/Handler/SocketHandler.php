@@ -93,21 +93,27 @@ final class SocketHandler implements HandlerInterface
 
 	public function handle(Record $record): void
 	{
-		if ($this->stream === false) {
-			return;
-		}
+		if ($this->stream !== false) {
 
-		$flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
-		$data = @json_encode($record, $flags);
+			$data = [
+				'level' => $record->getLevel(),
+				'message' => $record->getMessage(),
+				'timestamp' => (int)$record->getDateTime()->format('U')
+			];
 
-		if ($data !== false) {
+			// TODO: handle context
 
-			$data .= "\r\n";
+			$json = @json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-			$written = @fwrite($this->stream, $data);
+			if ($json !== false) {
 
-			if ($written !== false) {
-				$this->streamSize += $written;
+				$json .= "\r\n";
+
+				$written = @fwrite($this->stream, $json);
+
+				if ($written !== false) {
+					$this->streamSize += $written;
+				}
 			}
 		}
 	}

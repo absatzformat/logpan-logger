@@ -14,7 +14,8 @@ final class LoggerTest extends TestCase
 		$this->expectNotToPerformAssertions();
 
 		$handler = new SocketHandler('http://localhost:8080', 1, '1234');
-		$logger = new Logger($handler);
+		$logger = new Logger();
+		$logger->pushHandler($handler);
 		$logger->alert('Line5');
 		// sleep(1);
 		$logger->debug('Line6');
@@ -25,36 +26,21 @@ final class LoggerTest extends TestCase
 		$this->expectNotToPerformAssertions();
 
 		$handler = new SocketHandler('http://abc.def:80', 1, '1234');
-		$handler->handle(new Record('debug', 'test', time()));
+		$record = new Record('debug', 'test', [], new DateTimeImmutable('now'));
+		$handler->handle($record);
 	}
 
 	public function testTimezone(): void
 	{
 		$handler = new SocketHandler('', 1, '');
-		$logger = new Logger($handler);
+		$logger = new Logger();
+		$logger->pushHandler($handler);
+
 		$timezone = $logger->getTimezone();
 		$this->assertEquals('UTC', $timezone->getName());
 
 		$logger->setTimezone(new DateTimeZone('Europe/Berlin'));
 		$timezone = $logger->getTimezone();
 		$this->assertEquals('Europe/Berlin', $timezone->getName());
-	}
-
-	public function testGetLevels(): void
-	{
-		$handler = new SocketHandler('', 1, '');
-		$logger = new Logger($handler);
-		$levels = $logger->getLevels();
-		$expected = [
-			'emergency',
-			'alert',
-			'critical',
-			'error',
-			'warning',
-			'notice',
-			'info',
-			'debug'
-		];
-		$this->assertSame($expected, $levels);
 	}
 }
